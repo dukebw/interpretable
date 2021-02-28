@@ -1,0 +1,98 @@
+\documentclass{article}
+\usepackage{color}
+\usepackage[colorlinks]{hyperref}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{siunitx}
+
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+% Default fixed font does not support bold face
+\DeclareFixedFont{\ttb}{T1}{txtt}{bx}{n}{10} % for bold
+\DeclareFixedFont{\ttm}{T1}{txtt}{m}{n}{10}  % for normal
+
+\lstset{%
+	language=Python,
+	basicstyle=\ttm,
+	morekeywords={self},              % Add keywords here
+	keywordstyle=\ttb\color{deepblue},
+	emph={MyClass,__init__},          % Custom highlighting
+	emphstyle=\ttb\color{deepred},    % Custom highlighting style
+	stringstyle=\color{deepgreen},
+	frame=tb,                         % Any extra options here
+	showstringspaces=false
+}
+
+\title{Project A \\ECE1512 Winter 2021}
+\author{Brendan Duke\\Student ID: dukebren\\Date due: Mar. 1, 2021\\Date handed in: Mar. 1, 2021}
+\date{}
+
+
+\begin{document}
+
+\maketitle
+\clearpage
+
+
+\section{Task 1: 1-Dimensional Digit Classification}
+
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/classwise-accuracy}
+	\caption{\label{fig:mnist1d-classwise-accuracy}Class-wise accuracy on MNIST-1D\@.}
+\end{figure}
+
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/mnist1d-roc-curve}
+	\caption{\label{fig:mnist1d-roc-curve}ROC-AUC curves on MNIST-1D\@.}
+\end{figure}
+
+The overall (example-wise) classification accuracy on the test set was~\num{0.877}, computed with the code in \S~\ref{sec:task1-listing}.
+The class-wise accuracy on MNIST-1D is given in Fig~\ref{fig:mnist1d-classwise-accuracy}.
+The ROC-AUC curves are in Fig~\ref{fig:mnist1d-roc-curve}.
+
+
+\clearpage
+\appendix
+\section{Appendix: Program Listings}
+
+\subsection{Task 1}
+\label{sec:task1-listing}
+
+\begin{lstlisting}
+import os
+import pickle
+
+import numpy as np
+from tensorflow import keras
+
+from mnist1d_utils import make_dataset
+
+
+def task1():
+    model_path = os.path.join("project_a_supp", "models", "MNIST1D.h5")
+    model = keras.models.load_model(model_path)
+
+    mnist1d = make_dataset()
+
+    x_test = np.expand_dims(mnist1d["x_test"], axis=-1)
+    y_test = mnist1d["y_test"]
+    model.evaluate(x_test, y_test)
+
+    num_correct = 0
+    for i in range(len(x_test)):
+        digit_input = x_test[i : i + 1]
+        digit_label = y_test[i : i + 1]
+        digit_prediction = model(digit_input).numpy()
+        digit_prediction = np.argmax(digit_prediction)
+        if digit_prediction == digit_label:
+            num_correct += 1
+    print(f"Accuracy: {num_correct/len(x_test)}")
+
+
+if __name__ == "__main__":
+    task1()
+\end{lstlisting}
+
+\end{document}
