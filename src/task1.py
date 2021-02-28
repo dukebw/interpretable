@@ -3,7 +3,15 @@ import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import ConfusionMatrixDisplay, auc, confusion_matrix, roc_curve
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    auc,
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    precision_recall_curve,
+    roc_curve,
+)
 from tensorflow import keras
 
 from mnist1d_utils import make_dataset
@@ -20,7 +28,7 @@ def task1():
     model.evaluate(x_test, y_test)
 
     num_classes = 10
-    num_correct = 0
+    num_true_positives = 0
     num_correct_per_class = np.zeros(num_classes, dtype=np.int64)
     num_total_per_class = np.zeros(num_classes, dtype=np.int64)
     y_predicted_scores = []
@@ -32,12 +40,12 @@ def task1():
 
         digit_prediction = np.argmax(digit_prediction)
         if digit_prediction == digit_label:
-            num_correct += 1
+            num_true_positives += 1
             num_correct_per_class[digit_label] += 1
 
         num_total_per_class[digit_label] += 1
     y_predicted_scores = np.concatenate(y_predicted_scores, axis=0)
-    print(f"Accuracy: {num_correct/len(x_test)}")
+    print(f"Accuracy: {num_true_positives/len(x_test)}")
     classwise_accuracy = num_correct_per_class / num_total_per_class
     print(f"Class-wise ccuracy: {classwise_accuracy}")
 
@@ -58,6 +66,7 @@ def task1():
         )
         digit_auc = auc(false_pos_rate, true_pos_rate)
         plt.plot(false_pos_rate, true_pos_rate, label=f"{i} (AUC = {digit_auc:.4f})")
+
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
     plt.title("MNIST-1D ROC-AUC Curves")
@@ -74,6 +83,26 @@ def task1():
     disp.plot()
     # plt.savefig(os.path.join("report", "images", "mnist1d-confusion-matrix"), dpi=256)
     plt.show()
+
+    for i in range(num_classes):
+        precision, recall, thresholds = precision_recall_curve(
+            y_test_onehot[:, i], y_predicted_scores[:, i]
+        )
+        avg_precision = average_precision_score(
+            y_test_onehot[:, i], y_predicted_scores[:, i]
+        )
+        f1 = f1_score(y_test_onehot[:, i], np.round(y_predicted_scores[:, i]))
+        plt.plot(
+            recall, precision, label=f"{i} (AP = {avg_precision:.3f}, F1 = {f1:.2f})"
+        )
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("MNIST-1D Precision-Recall Curves")
+    plt.legend(loc="lower left")
+    plt.savefig(
+        os.path.join("report", "images", "mnist1d-precision-recall.png"), dpi=256
+    )
+    plt.clf()
 
 
 if __name__ == "__main__":
