@@ -3,7 +3,7 @@ import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import auc, confusion_matrix, roc_curve
+from sklearn.metrics import ConfusionMatrixDisplay, auc, confusion_matrix, roc_curve
 from tensorflow import keras
 
 from mnist1d_utils import make_dataset
@@ -64,6 +64,16 @@ def task1():
     plt.legend(loc="lower right")
     plt.savefig(os.path.join("report", "images", "mnist1d-roc-curve.png"), dpi=256)
     plt.clf()
+
+    y_predicted_digits = np.argmax(y_predicted_scores, axis=1)
+    digits_confusion_mtx = confusion_matrix(
+        y_predicted_digits, y_test, normalize="true"
+    )
+    plt.title("MNIST-1D Confusion Matrix")
+    disp = ConfusionMatrixDisplay(digits_confusion_mtx)
+    disp.plot()
+    # plt.savefig(os.path.join("report", "images", "mnist1d-confusion-matrix"), dpi=256)
+    plt.show()
 
 
 if __name__ == "__main__":
