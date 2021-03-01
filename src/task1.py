@@ -32,6 +32,9 @@ def task1():
     num_correct_per_class = np.zeros(num_classes, dtype=np.int64)
     num_total_per_class = np.zeros(num_classes, dtype=np.int64)
     y_predicted_scores = []
+    num_wrong = 0
+    plt.figure(figsize=(20, 8))
+    should_plot_failures = False
     for i in range(len(x_test)):
         digit_input = x_test[i : i + 1]
         digit_label = y_test[i : i + 1]
@@ -40,10 +43,30 @@ def task1():
 
         digit_prediction = np.argmax(digit_prediction)
         if digit_prediction == digit_label:
+            if not should_plot_failures and (num_true_positives < 10):
+                plt.subplot(2, 5, 1 + num_true_positives)
+                plt.plot(np.squeeze(digit_input), "r")
+                plt.axis("off")
+                plt.title(f"label: {digit_label.item()} predicted: {digit_prediction}")
+
             num_true_positives += 1
             num_correct_per_class[digit_label] += 1
+        else:
+            if should_plot_failures and (num_wrong < 10):
+                plt.subplot(2, 5, 1 + num_wrong)
+                plt.plot(np.squeeze(digit_input), "r")
+                plt.axis("off")
+                plt.title(f"label: {digit_label.item()} predicted: {digit_prediction}")
+
+                num_wrong += 1
 
         num_total_per_class[digit_label] += 1
+    if should_plot_failures:
+        plt.savefig(os.path.join("report", "images", "mnist1d-failures.png"), dpi=256)
+    else:
+        plt.savefig(os.path.join("report", "images", "mnist1d-successes.png"), dpi=256)
+    plt.clf()
+
     y_predicted_scores = np.concatenate(y_predicted_scores, axis=0)
     print(f"Accuracy: {num_true_positives/len(x_test)}")
     classwise_accuracy = num_correct_per_class / num_total_per_class

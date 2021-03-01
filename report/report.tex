@@ -1,9 +1,17 @@
 \documentclass{article}
+\usepackage{amsmath}
 \usepackage{color}
-\usepackage[colorlinks]{hyperref}
+\usepackage{hyperref}
+\hypersetup{%
+	breaklinks=true,
+	colorlinks,
+}
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{siunitx}
+
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\smax}{smax}
 
 \definecolor{deepblue}{rgb}{0,0,0.5}
 \definecolor{deepred}{rgb}{0.6,0,0}
@@ -24,6 +32,8 @@
 	frame=tb,                         % Any extra options here
 	showstringspaces=false
 }
+
+\newcommand{\myparagraph}[1]{\noindent\textbf{#1 ---}}
 
 \title{Project A \\ECE1512 Winter 2021}
 \author{Brendan Duke\\Student ID: dukebren\\Date due: Mar. 1, 2021\\Date handed in: Mar. 1, 2021}
@@ -58,11 +68,110 @@
 	\caption{\label{fig:mnist1d-precision-recall}MNIST-1D precision-recall curves.}
 \end{figure}
 
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/mnist1d-failures}
+	\caption{\label{fig:mnist1d-failures}MNIST-1D misclassification examples.}
+\end{figure}
+
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/mnist1d-successes}
+	\caption{\label{fig:mnist1d-successes}MNIST-1D correct classification.}
+\end{figure}
+
 The overall (example-wise) classification accuracy on the test set was~\num{0.877}, computed with the code in \S~\ref{sec:task1-listing}.
 The class-wise accuracy on MNIST-1D is given in Fig~\ref{fig:mnist1d-classwise-accuracy}.
 The ROC-AUC curves are in Fig~\ref{fig:mnist1d-roc-curve}.
 The confusion matrix is in Fig~\ref{fig:mnist1d-confusion-matrix}.
 Fig~\ref{fig:mnist1d-precision-recall} contains precision-recall curves, F1 scores, and average precision (AP) on the test set.
+
+Fig~\ref{fig:mnist1d-failures} and Fig~\ref{fig:mnist1d-successes} show qualitative examples of misclassifications and correct classifications, respectively.
+Referring back to the confusion matrix (Fig~\ref{fig:mnist1d-confusion-matrix}), the two most often misclassified classes were digits~\num{4} and~\num{9}, while~\num{9} was also frequently confused with~\num{5} and~\num{8}.
+Digits~\num{9} and~\num{4} are similar in appearance even in 2D handwriting.
+MNIST-1D introduces noise and random transformations such as shear, padding, and rotation to each digit.
+As seen in Fig~\ref{fig:mnist1d-failures}, this noise often makes the digits indistinguishable to even the human eye.
+Indistinguishability to even the human eye indicates unavoidable error (Bayes error).
+Therefore the high misclassification rate for digit~\num{9} can be attributed to the Bayes error rate in MNIST-1D, caused by the injection of random noise.
+
+
+\section{Task 2: CNN Interpretation}
+
+
+\subsection{Part 1}
+
+I chose to implement ``Understanding Deep Networks via Extremal Perturbations and Smooth Masks''~\cite{fong2019understanding}, which I will refer to as Extremal Perturbations (EP).
+
+\myparagraph{Research gap} EP fills a research gap left by existing methods at its time of publication.
+Firstly, existing methods had been found to produce the same attribution no matter which output neuron was analysed~\cite{mahendran2016salient}.
+In some cases even model weights were ignored in the attribution~\cite{adebayo2018sanity}.
+In contrast, experiments where model weights were progressively randomized demonstrated that EP is sensitive to changes in model weights.
+Furthermore, EP can be extended to find which channels are salient, showing that EP can differentiate between the output of different neurons.
+Another research gap filled by EP is left by prior work~\cite{fong2017interpretable} that required balancing several energy terms, each with its own coefficient.
+These coefficients are hyperparameters, and the output attribution depends on the particular setting of the hyperparameters.
+EP contributes a method that fills this need for hyperparameter-free attributions.
+EP produces the same attribution regardless of hyperparameter, because EP solves an optimization problem that is independent of hyperparameter setting.
+EP improved the existing literature as a method that is both sensitive to model weights and distinguishes between output neurons, as well as produces a concrete attribution that is independent of hyperparameters.
+
+
+\myparagraph{Novelty / contribution} The contributions of EP are twofold.
+Firstly, the method of extremal perturbations is introduced.
+An extremal perturbation produces the maximum network activation for a fixed perturbation area.
+Previous methods balanced energy terms in their objective, and hence extremal perturbations is novel.
+Secondly, the extremal perturbation framework is extended to work on intermediate activations over channels, instead of just the input.
+In this way, attribution goes beyond input spatial attribution and can be done over channels and intermediate layers.
+
+
+\myparagraph{Methodologies} Here I will follow the Extremal Perturbations notation to describe the method.
+The fundamental idea of EP is to find a mask~$m_a$ for a fixed area budget~$a$ that represents the greatest attribution of the inputs for a given output neuron.
+This is done by solving a two-level optimization problem: on one level a mask~$m_a$ is found that maximizes the activations for a fixed area budget~$a$, and on the other level the area budget is minimized for a fixed activation threshold.
+On the first level, suppose that the area budget~$a$ is fixed for a given input~$x$ with the neural network model represented by~$\Phi$.
+The activation-maximizing mask~$m_a$ is then
+\begin{equation}
+	m_a = \argmax_{m: {\lVert m\rVert}_1 = a, m \in \mathcal{M}} \Phi(m\otimes x),
+	\label{eq:mask-maximal-output}
+\end{equation}
+where~$m\in\mathcal{M}$ indicates that the masks~$m$ are constrained to a smooth manifold~$\mathcal{M}$
+This output-maximizing mask (\ref{eq:mask-maximal-output}) depends on the area~$a$, so the introduction of the second level of optimization removes this dependency.
+Given a desired lower bound~$\Phi_0$ on the outputs, the second level finds a minimal area~$a^*$ as
+\begin{equation}
+	a^* = \min\{a\,:\,\Phi(m_a\otimes x)\geq\Phi_0\}.
+	\label{eq:area-minimal}
+\end{equation}
+The mask~$m_{a^*}$ resulting from alternating between both levels of optimization is called extremal, because there is no smaller mask that produces output greater than the lower bound~$\Phi_0$.
+Hence, mask~$m_{a^*}$ concretely represents the attribution since not only does~$m_{a^*}$ produce a large response from the neural network~$\Phi$, there is also no smaller (sufficiently smooth) area of the input that can produce an equally large response.
+
+
+\myparagraph{Advantages / disadvantages} The advantages of EP are the independence of EP's attribution from choice of hyperparameters, and EP's sensitivity to both model weights and output neuron.
+One disadvantage is that optimization EP is difficult as posed, since the output-maximizing mask (\ref{eq:mask-maximal-output}) has gradients that are zero almost everywhere.
+EP fixes this by introducing a ``smooth max'' operator~$\smax$,
+\begin{equation}
+	\smax_{u\in\Omega; T} f(u) = \frac{\sum_{u\in\Omega}f(u)\exp f(u)/T}{\sum_{u\in\Omega}\exp f(u)/T}
+	\label{eq:smax}
+\end{equation}
+for image spatial coordinates~$u$, image space~$\Omega$, and temperature~$T$.
+However, this smooth max operator introduces the temperature~$T$ as a hyperparameter.
+So, to retain the ``hyperparameter independence'' advantage, EP's attributions must prove to be independent of temperature~$T$.
+
+
+\myparagraph{Still interpretable in difficult scenarios?} Based on the output-maximizing mask formulation (\ref{eq:mask-maximal-output}), EP should handle difficult scenarios except when the smoothness assumption is broken.
+If the smoothness constraint~$m\in\mathcal{M}$ does not hold true, then EP will produce an incorrect attribution.
+EP defines smooth masks by convolving a prototype or ``auxiliary'' mask with a Gaussian kernel.
+Therefore, if the model's attribution contained high spatial frequencies, those frequencies would be removed by the smoothing.
+In this difficult scenario of high frequency true attribution, EP would no longer be interpretable.
+
+
+\myparagraph{Can it analyze and inspect the cases of misclassification? Why?} EP should in theory be able to analyze and inspect the cases of misclassification shown in Fig~\ref{fig:mnist1d-failures}.
+EP identifies the most salient region of an input using a bilevel optimization, which alternates between maximizing outputs for a fixed area budget, and minimizing area for a fixed output lower bound.
+This would be especially helpful in identifying salient regions of the MNIST-1D digits, since these digits are mostly noise introduced in dataset creation (Fig~\ref{fig:mnist1d-failures}).
+
+However, implementing EP on MNIST-1D requires changing EP to work on MNIST-1D's data format.
+Perturbation methods such as EP require removing (or blurring) the masked out regions of the input.
+For example, background regions of an image would be masked or blurred out.
+It is not clear how to remove regions of MNIST-1D in the same way --- how can a fixed-length sequence of coordinates be masked or blurred out?
+So, in the proceeding applied CNN interpretation task I used GradCAM.
+For the 2D images in HMT I used my EP implementation.
+
+
+\subsection{Part 2}
 
 
 \clearpage
@@ -76,7 +185,17 @@ Fig~\ref{fig:mnist1d-precision-recall} contains precision-recall curves, F1 scor
 import os
 import pickle
 
+import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    auc,
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    precision_recall_curve,
+    roc_curve,
+)
 from tensorflow import keras
 
 from mnist1d_utils import make_dataset
@@ -92,19 +211,90 @@ def task1():
     y_test = mnist1d["y_test"]
     model.evaluate(x_test, y_test)
 
-    num_correct = 0
+    num_classes = 10
+    num_true_positives = 0
+    num_correct_per_class = np.zeros(num_classes, dtype=np.int64)
+    num_total_per_class = np.zeros(num_classes, dtype=np.int64)
+    y_predicted_scores = []
     for i in range(len(x_test)):
         digit_input = x_test[i : i + 1]
         digit_label = y_test[i : i + 1]
         digit_prediction = model(digit_input).numpy()
+        y_predicted_scores.append(digit_prediction)
+
         digit_prediction = np.argmax(digit_prediction)
         if digit_prediction == digit_label:
-            num_correct += 1
-    print(f"Accuracy: {num_correct/len(x_test)}")
+            num_true_positives += 1
+            num_correct_per_class[digit_label] += 1
+
+        num_total_per_class[digit_label] += 1
+    y_predicted_scores = np.concatenate(y_predicted_scores, axis=0)
+    print(f"Accuracy: {num_true_positives/len(x_test)}")
+    classwise_accuracy = num_correct_per_class / num_total_per_class
+    print(f"Class-wise ccuracy: {classwise_accuracy}")
+
+    plt.bar(x=range(num_classes), height=classwise_accuracy)
+    plt.title("MNIST-1D Class-wise Accuracy")
+    plt.xticks(range(10))
+    plt.xlabel("Digit")
+    plt.ylabel("Accuracy")
+    plt.savefig(os.path.join("report", "images", "mnist1d-class-accuracy.png"), dpi=256)
+    plt.clf()
+
+    y_test_onehot = np.zeros((len(x_test), num_classes), dtype=np.int64)
+    for y_idx, y_label in enumerate(y_test):
+        y_test_onehot[y_idx, y_label] = 1
+    for i in range(num_classes):
+        false_pos_rate, true_pos_rate, _ = roc_curve(
+            y_test_onehot[:, i], y_predicted_scores[:, i]
+        )
+        digit_auc = auc(false_pos_rate, true_pos_rate)
+        plt.plot(false_pos_rate, true_pos_rate, label=f"{i} (AUC = {digit_auc:.4f})")
+
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("MNIST-1D ROC-AUC Curves")
+    plt.legend(loc="lower right")
+    plt.savefig(os.path.join("report", "images", "mnist1d-roc-curve.png"), dpi=256)
+    plt.clf()
+
+    y_predicted_digits = np.argmax(y_predicted_scores, axis=1)
+    digits_confusion_mtx = confusion_matrix(
+        y_predicted_digits, y_test, normalize="true"
+    )
+    plt.title("MNIST-1D Confusion Matrix")
+    disp = ConfusionMatrixDisplay(digits_confusion_mtx)
+    disp.plot()
+    # plt.savefig(os.path.join("report", "images", "mnist1d-confusion-matrix"), dpi=256)
+    plt.show()
+
+    for i in range(num_classes):
+        precision, recall, thresholds = precision_recall_curve(
+            y_test_onehot[:, i], y_predicted_scores[:, i]
+        )
+        avg_precision = average_precision_score(
+            y_test_onehot[:, i], y_predicted_scores[:, i]
+        )
+        f1 = f1_score(y_test_onehot[:, i], np.round(y_predicted_scores[:, i]))
+        plt.plot(
+            recall, precision, label=f"{i} (AP = {avg_precision:.3f}, F1 = {f1:.2f})"
+        )
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("MNIST-1D Precision-Recall Curves")
+    plt.legend(loc="lower left")
+    plt.savefig(
+        os.path.join("report", "images", "mnist1d-precision-recall.png"), dpi=256
+    )
+    plt.clf()
 
 
 if __name__ == "__main__":
     task1()
 \end{lstlisting}
+
+\small
+\bibliographystyle{ieee}
+\bibliography{report}
 
 \end{document}
