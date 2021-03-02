@@ -163,13 +163,6 @@ In this difficult scenario of high frequency true attribution, EP would no longe
 EP identifies the most salient region of an input using a bilevel optimization, which alternates between maximizing outputs for a fixed area budget, and minimizing area for a fixed output lower bound.
 This would be especially helpful in identifying salient regions of the MNIST-1D digits, since these digits are mostly noise introduced in dataset creation (Fig~\ref{fig:mnist1d-failures}).
 
-However, implementing EP on MNIST-1D requires changing EP to work on MNIST-1D's data format.
-Perturbation methods such as EP require removing (or blurring) the masked out regions of the input.
-For example, background regions of an image would be masked or blurred out.
-It is not clear how to remove regions of MNIST-1D in the same way --- how can a fixed-length sequence of coordinates be masked or blurred out?
-So, in the proceeding applied CNN interpretation task I used GradCAM.
-For the 2D images in HMT I used my EP implementation.
-
 
 \subsection{Part 2}
 
