@@ -44,8 +44,6 @@ class MaskGenerator_TF:
 
             self.weight[0, k] = self.kernel(delta / sigma)
         self.weight = tf.convert_to_tensor(self.weight, dtype=tf.float32)
-        print(f"(tf) weight {self.weight.shape}")
-        print(self.weight)
 
     def generate(self, mask_in):
         paddings = [[0, 0], [0, 0], [self.padding, self.padding]]
@@ -136,6 +134,32 @@ class Perturbation_TF:
         return self
 
 
+# NOTE(brendan): from MNIST1D.ipynb
+def get_digit_templates():
+    d0 = np.asarray([5, 6, 6.5, 6.75, 7, 7, 7, 7, 6.75, 6.5, 6, 5])
+    d1 = np.asarray([5, 3, 3, 3.4, 3.8, 4.2, 4.6, 5, 5.4, 5.8, 5, 5])
+    d2 = np.asarray([5, 6, 6.5, 6.5, 6, 5.25, 4.75, 4, 3.5, 3.5, 4, 5])
+    d3 = np.asarray([5, 6, 6.5, 6.5, 6, 5, 5, 6, 6.5, 6.5, 6, 5])
+    d4 = np.asarray([5, 4.4, 3.8, 3.2, 2.6, 2.6, 5, 5, 5, 5, 5, 5])
+    d5 = np.asarray([5, 3, 3, 3, 3, 5, 6, 6.5, 6.5, 6, 4.5, 5])
+    d6 = np.asarray([5, 4, 3.5, 3.25, 3, 3, 3, 3, 3.25, 3.5, 4, 5])
+    d7 = np.asarray([5, 7, 7, 6.6, 6.2, 5.8, 5.4, 5, 4.6, 4.2, 5, 5])
+    d8 = np.asarray([5, 4, 3.5, 3.5, 4, 5, 5, 4, 3.5, 3.5, 4, 5])
+    d9 = np.asarray([5, 4, 3.5, 3.5, 4, 5, 5, 5, 5, 4.7, 4.3, 5])
+
+    x = np.stack([d0, d1, d2, d3, d4, d5, d6, d7, d8, d9])
+    x -= x.mean(1, keepdims=True)  # whiten
+    x /= x.std(1, keepdims=True)
+    x -= x[:, :1]  # signal starts and ends at 0
+
+    templates = {
+        "x": x / 6.0,
+        "t": np.linspace(-5, 5, len(d0)) / 6.0,
+        "y": np.asarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+    }
+    return templates
+
+
 def task2():
     model_path = os.path.join("project_a_supp", "models", "MNIST1D.h5")
     model = keras.models.load_model(model_path)
@@ -148,72 +172,115 @@ def task2():
     x_test = np.expand_dims(mnist1d["x_test"], axis=-1)
     y_test = mnist1d["y_test"]
 
+    digit_templates = get_digit_templates()
+
     # NOTE(brendan): Extremal perturbation hyperparameters
     areas = [0.3]
-    regul_weight = 300
+    initial_regul_weight = 300
     max_iter = 800
     w = x_test.shape[1]
     sigma = 4
     num_levels = 2
 
-    digit_input = x_test[:1].reshape((1, 1, w))
-    mask_generator = MaskGenerator_TF((w,), sigma)
-    perturbation = Perturbation_TF(digit_input, num_levels=num_levels, max_blur=20)
+    # NOTE(brendan): just to figure out correct/incorrect predictions for visualization
+    correct_indices = []
+    incorrect_indices = []
+    for i in range(len(x_test)):
+        digit_input = x_test[i : i + 1]
+        digit_label = y_test[i : i + 1]
+        digit_prediction = model(digit_input).numpy()
 
-    # NOTE(brendan): Prepare reference area vector
-    max_area = np.prod(mask_generator.shape_out)
-    reference = np.ones((len(areas), max_area))
-    for i, a in enumerate(areas):
-        reference[i, : int(max_area * (1 - a))] = 0
-    reference = tf.convert_to_tensor(reference, dtype=tf.float32)
+        digit_prediction = np.argmax(digit_prediction)
+        if digit_prediction == digit_label:
+            correct_indices.append(i)
+            continue
+        incorrect_indices.append(i)
 
-    pmask = tf.ones((len(areas), 1, w))
-    pmask = tf.Variable(pmask)
-    y = model(tf.reshape(digit_input, (1, w, 1)))
-    target_channel = np.argmax(tf.squeeze(y))
-    for iter_t in range(max_iter):
-        with tf.GradientTape() as tape:
-            # NOTE(brendan): generate mask from smooth manifold
-            mask_, mask = mask_generator.generate(pmask)
+    num_vis_examples = 10
+    visualization_type = "incorrect"
+    if visualization_type == "correct":
+        example_indices = correct_indices
+    else:
+        example_indices = incorrect_indices
+    for vis_idx, example_idx in enumerate(example_indices[:num_vis_examples]):
+        regul_weight = initial_regul_weight
+        # NOTE(brendan): Extremal perturbation algorithm
+        digit_input = x_test[example_idx : example_idx + 1].reshape((1, 1, w))
+        mask_generator = MaskGenerator_TF((w,), sigma)
+        perturbation = Perturbation_TF(digit_input, num_levels=num_levels, max_blur=20)
 
-            # NOTE(brendan): use "preserve" variant of EP
-            x = perturbation.apply(mask_)
+        # NOTE(brendan): Prepare reference area vector
+        max_area = np.prod(mask_generator.shape_out)
+        reference = np.ones((len(areas), max_area))
+        for area_idx, area in enumerate(areas):
+            reference[area_idx, : int(max_area * (1 - area))] = 0
+        reference = tf.convert_to_tensor(reference, dtype=tf.float32)
 
-            x = tf.reshape(x, (1, w, 1))
-            y = model(x)
-
-            reward = y[:, target_channel]
-
-            # NOTE(brendan): Area regularization
-            mask_sorted = tf.reshape(mask, (len(areas), -1))
-            mask_sorted = tf.sort(mask_sorted, axis=1)
-            regul = -((mask_sorted - reference) ** 2)
-            regul = regul_weight * tf.reduce_mean(regul, axis=1)
-            energy = tf.reduce_sum(reward + regul)
-
-            grads = tape.gradient(-energy, pmask)
-        optimizer.apply_gradients(zip([grads], [pmask]))
-        pmask = tf.clip_by_value(pmask, clip_value_min=0, clip_value_max=1)
+        pmask = tf.ones((len(areas), 1, w))
         pmask = tf.Variable(pmask)
+        y = model(tf.reshape(digit_input, (1, w, 1)))
+        target_channel = np.argmax(tf.squeeze(y))
+        for iter_t in range(max_iter):
+            with tf.GradientTape() as tape:
+                # NOTE(brendan): generate mask from smooth manifold
+                mask_, mask = mask_generator.generate(pmask)
 
-        # NOTE(brendan): the area constraint tends towards a hard constraint
-        regul_weight *= 1.0035
+                # NOTE(brendan): use "preserve" variant of EP to perturb input
+                # with smooth mask
+                x = perturbation.apply(mask_)
 
-        if (iter_t % 100) == 0:
-            print(f"grads {grads}")
-            print(f"regul {regul} reward {reward}")
-            print(f"pmask after: {pmask}")
-            print(f"mask_sorted {mask_sorted}")
-            print(f"reference {reference}")
+                x = tf.reshape(x, (1, w, 1))
+                y = model(x)
 
-    plt.subplot(2, 5, 1)
-    plt.plot(np.squeeze(digit_input), "r")
-    plt.axis("off")
-    plt.title("Input")
-    plt.subplot(2, 5, 2)
-    plt.plot(np.squeeze(x.numpy()), "r")
-    plt.axis("off")
-    plt.title("Perturbed")
+                reward = y[:, target_channel]
+
+                # NOTE(brendan): Area regularization
+                mask_sorted = tf.reshape(mask, (len(areas), -1))
+                mask_sorted = tf.sort(mask_sorted, axis=1)
+                regul = -((mask_sorted - reference) ** 2)
+                regul = regul_weight * tf.reduce_mean(regul, axis=1)
+                energy = tf.reduce_sum(reward + regul)
+
+                grads = tape.gradient(-energy, pmask)
+            optimizer.apply_gradients(zip([grads], [pmask]))
+            pmask = tf.clip_by_value(pmask, clip_value_min=0, clip_value_max=1)
+            pmask = tf.Variable(pmask)
+
+            # NOTE(brendan): the area constraint tends towards a hard constraint
+            regul_weight *= 1.0035
+
+            if (iter_t % 100) == 0:
+                print(f"regul {regul} reward {reward}")
+                print(f"pmask after: {pmask}")
+                print(f"mask_sorted {mask_sorted}")
+                print(f"reference {reference}")
+
+        if visualization_type == "correct":
+            num_rows = 3
+        else:
+            num_rows = 4
+        plt.subplot(num_rows, num_vis_examples, 1 + vis_idx)
+        plt.plot(np.squeeze(digit_input), "r")
+        plt.axis("off")
+        plt.title("Input")
+
+        plt.subplot(num_rows, num_vis_examples, 1 + num_vis_examples + vis_idx)
+        plt.plot(np.squeeze(x.numpy()), "r")
+        plt.axis("off")
+        plt.title("Perturbed")
+
+        plt.subplot(num_rows, num_vis_examples, 1 + (2 * num_vis_examples) + vis_idx)
+        plt.plot(digit_templates["x"][y_test[example_idx]], "r")
+        plt.axis("off")
+        plt.title(f"Template (label: {y_test[example_idx]})")
+
+        if visualization_type == "incorrect":
+            plt.subplot(
+                num_rows, num_vis_examples, 1 + (3 * num_vis_examples) + vis_idx
+            )
+            plt.plot(digit_templates["x"][target_channel], "r")
+            plt.axis("off")
+            plt.title(f"Template (predicted: {target_channel})")
     plt.show()
 
 
