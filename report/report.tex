@@ -46,7 +46,10 @@
 \clearpage
 
 
-\section{Task 1: 1-Dimensional Digit Classification}
+\section{Part 1: 1D Digit Classification}
+
+
+\subsection{Task 1: 1D Digit Classification}
 
 \begin{figure}[t]
 	\includegraphics[width=\textwidth]{images/mnist1d-class-accuracy}
@@ -78,7 +81,7 @@
 	\caption{\label{fig:mnist1d-successes}MNIST-1D correct classification.}
 \end{figure}
 
-The overall (example-wise) classification accuracy on the test set was~\num{0.877}, computed with the code in \S~\ref{sec:task1-listing}.
+The overall (example-wise) classification accuracy on the test set was~\num{0.877}, computed with the code at \url{https://github.com/dukebw/interpretable}.
 The class-wise accuracy on MNIST-1D is given in Fig~\ref{fig:mnist1d-classwise-accuracy}.
 The ROC-AUC curves are in Fig~\ref{fig:mnist1d-roc-curve}.
 The confusion matrix is in Fig~\ref{fig:mnist1d-confusion-matrix}.
@@ -93,10 +96,8 @@ Indistinguishability to even the human eye indicates unavoidable error (Bayes er
 Therefore the high misclassification rate for digit~\num{9} can be attributed to the Bayes error rate in MNIST-1D, caused by the injection of random noise.
 
 
-\section{Task 2: CNN Interpretation}
+\subsection{Task 2: CNN Interpretation}
 
-
-\subsection{Part 1}
 
 I chose to implement ``Understanding Deep Networks via Extremal Perturbations and Smooth Masks''~\cite{fong2019understanding}, which I will refer to as Extremal Perturbations (EP).
 
@@ -164,129 +165,80 @@ EP identifies the most salient region of an input using a bilevel optimization, 
 This would be especially helpful in identifying salient regions of the MNIST-1D digits, since these digits are mostly noise introduced in dataset creation (Fig~\ref{fig:mnist1d-failures}).
 
 
-\subsection{Part 2}
+\begin{figure}[ht]
+	\includegraphics[width=\textwidth]{images/mnist1d-ep-successes}
+	\caption{\label{fig:mnist1d-ep-successes}MNIST-1D Extremal Perturbation visualization for correct classification.
+		Top row: raw input digit.
+		Middle row: perturbed input where unimportant regions have been masked (blurred) out.
+		Attribution is determined by comparing the perturbed (second row) to the input (first row).
+		The model's prediction is attributable to the first row regions preserved in the second row.
+		Bottom row: template of the label, for reference.}
+\end{figure}
 
+\begin{figure}[ht]
+	\includegraphics[width=\textwidth]{images/mnist1d-ep-failures}
+	\caption{\label{fig:mnist1d-ep-failures}MNIST-1D Extremal Perturbation visualization for misclassification.
+		Top row: raw input digit.
+		Second row: perturbed input where unimportant regions have been blurred out.
+		Third row: template of the label.
+		Fourth row: template of the predicted class.}
+\end{figure}
+
+\myparagraph{Implementation (2a)} I implemented Extremal Perturbation (EP) in TensorFlow for MNIST-1D\@.
+1D EP takes the digit represented as a vector of ``height'' ($y$ axis) values as input, and outputs a 1D mask of floating point values between zero and one.
+This 1D mask is the explanation map that attributes the model's prediction to important input features.
+The 1D mask is near one for regions of the~$x$ axis that have important input features, and near zero for unimportant regions.
+The 1D mask is used to blur out the unimportant regions (Figs~\ref{fig:mnist1d-ep-successes} \& \ref{fig:mnist1d-ep-failures}).
+
+
+\myparagraph{Qualitative results} 1D EP produces qualitatively meaningful attributions for examples where the model was correctly classified (Fig~\ref{fig:mnist1d-ep-successes}).
+Fig~\ref{fig:mnist1d-ep-successes} shows the result from running EP on a set of correctly classified test inputs.
+Attribution is determined in Fig~\ref{fig:mnist1d-ep-successes} by comparing the first and second rows.
+EP works by blurring out unimportant regions, so the region of the first row that is left over in the second row is the input region to which EP attributes the model's prediction.
+For instance, in Fig~\ref{fig:mnist1d-ep-successes} column 2, the large ``U'' shaped region is leftover, and matches the template for the label (column 2, bottom).
+The other regions of column 2 have been deemed unimportant by EP, and therefore EP blurred them out in the perturbation step ($m\otimes x$ in Eq~\ref{eq:mask-maximal-output}).
+In many cases the highlighted region is similar to the corresponding template for the label (compare second and third rows in columns 2 to 8).
+However in some cases (columns 1, 9, and 10) the relation between the attributed region and the template is less obvious.
+This could be due to the size of the region chosen (30\% of the input), coupled with difficulty interpreting MNIST-1D (note the high human error rate indicating high Bayes error rate).
+
+EP also explains mispredictions (Fig~\ref{fig:mnist1d-ep-failures}) well.
+For these misclassifications, in some cases (columns 6 and 7-10) the templates are similar to begin with, as seen by comparing the label template with the predicted class template (Fig~\ref{fig:mnist1d-ep-failures} rows 3 and 4).
+For other cases, EP highlights the reason for the model's confusion.
+For example, in column 7 the model has incorrectly ignored the leftmost region (corresponding to the label 3), and instead focused on a region on the right, which the model interprets as digit zero.
+The region on the right is spurious noise introduced by the random transformations used to create the dataset, but the model interprets that noise as the ``U'' shape (digit zero).
+Overall, by working in the input space EP produced interpretable attributions with little tuning --- the main hyperparameter I had to change was the Gaussian standard deviation (used to create the smooth mask manifold), which I made smaller due to the smaller spatial resolution of MNIST-1D compared to ImageNet.
+
+
+\section{Part 2: Histopathological Tissue Classification}
+
+\subsection{Task 3: Biomedical Image Classification and Interpretation}
+
+I evaluated per-class accuracy (Fig~\ref{fig:hmt-classwise-accuracy}), ROC-AUC curves (Fig~\ref{fig:hmt-roc-curve}), confusion matrix (Fig~\ref{fig:hmt-confusion-matrix}), and precision-recall curves (Fig~\ref{fig:hmt-precision-recall}) on HMT\@.
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/hmt-class-accuracy}
+	\caption{\label{fig:hmt-classwise-accuracy}Class-wise accuracy on HMT\@.}
+\end{figure}
+
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/hmt-roc-curve}
+	\caption{\label{fig:hmt-roc-curve}ROC-AUC curves on HMT\@.}
+\end{figure}
+
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/hmt-confusion-matrix}
+	\caption{\label{fig:hmt-confusion-matrix}HMT confusion matrix.}
+\end{figure}
+
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/hmt-precision-recall}
+	\caption{\label{fig:hmt-precision-recall}HMT precision-recall curves.}
+\end{figure}
 
 \clearpage
 \appendix
 \section{Appendix: Program Listings}
 
 The code is available at \url{https://github.com/dukebw/interpretable}.
-
-\subsection{Task 1}
-\label{sec:task1-listing}
-
-\begin{lstlisting}
-import os
-import pickle
-
-import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.metrics import (
-    ConfusionMatrixDisplay,
-    auc,
-    average_precision_score,
-    confusion_matrix,
-    f1_score,
-    precision_recall_curve,
-    roc_curve,
-)
-from tensorflow import keras
-
-from mnist1d_utils import make_dataset
-
-
-def task1():
-    model_path = os.path.join("project_a_supp", "models", "MNIST1D.h5")
-    model = keras.models.load_model(model_path)
-
-    mnist1d = make_dataset()
-
-    x_test = np.expand_dims(mnist1d["x_test"], axis=-1)
-    y_test = mnist1d["y_test"]
-    model.evaluate(x_test, y_test)
-
-    num_classes = 10
-    num_true_positives = 0
-    num_correct_per_class = np.zeros(num_classes, dtype=np.int64)
-    num_total_per_class = np.zeros(num_classes, dtype=np.int64)
-    y_predicted_scores = []
-    for i in range(len(x_test)):
-        digit_input = x_test[i : i + 1]
-        digit_label = y_test[i : i + 1]
-        digit_prediction = model(digit_input).numpy()
-        y_predicted_scores.append(digit_prediction)
-
-        digit_prediction = np.argmax(digit_prediction)
-        if digit_prediction == digit_label:
-            num_true_positives += 1
-            num_correct_per_class[digit_label] += 1
-
-        num_total_per_class[digit_label] += 1
-    y_predicted_scores = np.concatenate(y_predicted_scores, axis=0)
-    print(f"Accuracy: {num_true_positives/len(x_test)}")
-    classwise_accuracy = num_correct_per_class / num_total_per_class
-    print(f"Class-wise ccuracy: {classwise_accuracy}")
-
-    plt.bar(x=range(num_classes), height=classwise_accuracy)
-    plt.title("MNIST-1D Class-wise Accuracy")
-    plt.xticks(range(10))
-    plt.xlabel("Digit")
-    plt.ylabel("Accuracy")
-    plt.savefig(os.path.join("report", "images", "mnist1d-class-accuracy.png"), dpi=256)
-    plt.clf()
-
-    y_test_onehot = np.zeros((len(x_test), num_classes), dtype=np.int64)
-    for y_idx, y_label in enumerate(y_test):
-        y_test_onehot[y_idx, y_label] = 1
-    for i in range(num_classes):
-        false_pos_rate, true_pos_rate, _ = roc_curve(
-            y_test_onehot[:, i], y_predicted_scores[:, i]
-        )
-        digit_auc = auc(false_pos_rate, true_pos_rate)
-        plt.plot(false_pos_rate, true_pos_rate, label=f"{i} (AUC = {digit_auc:.4f})")
-
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("MNIST-1D ROC-AUC Curves")
-    plt.legend(loc="lower right")
-    plt.savefig(os.path.join("report", "images", "mnist1d-roc-curve.png"), dpi=256)
-    plt.clf()
-
-    y_predicted_digits = np.argmax(y_predicted_scores, axis=1)
-    digits_confusion_mtx = confusion_matrix(
-        y_predicted_digits, y_test, normalize="true"
-    )
-    plt.title("MNIST-1D Confusion Matrix")
-    disp = ConfusionMatrixDisplay(digits_confusion_mtx)
-    disp.plot()
-    # plt.savefig(os.path.join("report", "images", "mnist1d-confusion-matrix"), dpi=256)
-    plt.show()
-
-    for i in range(num_classes):
-        precision, recall, thresholds = precision_recall_curve(
-            y_test_onehot[:, i], y_predicted_scores[:, i]
-        )
-        avg_precision = average_precision_score(
-            y_test_onehot[:, i], y_predicted_scores[:, i]
-        )
-        f1 = f1_score(y_test_onehot[:, i], np.round(y_predicted_scores[:, i]))
-        plt.plot(
-            recall, precision, label=f"{i} (AP = {avg_precision:.3f}, F1 = {f1:.2f})"
-        )
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.title("MNIST-1D Precision-Recall Curves")
-    plt.legend(loc="lower left")
-    plt.savefig(
-        os.path.join("report", "images", "mnist1d-precision-recall.png"), dpi=256
-    )
-    plt.clf()
-
-
-if __name__ == "__main__":
-    task1()
-\end{lstlisting}
 
 \small
 \bibliographystyle{ieee}
