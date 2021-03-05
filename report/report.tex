@@ -213,7 +213,7 @@ Overall, by working in the input space EP produced interpretable attributions wi
 
 \subsection{Task 3: Biomedical Image Classification and Interpretation}
 
-I evaluated per-class accuracy (Fig~\ref{fig:hmt-classwise-accuracy}), ROC-AUC curves (Fig~\ref{fig:hmt-roc-curve}), confusion matrix (Fig~\ref{fig:hmt-confusion-matrix}), and precision-recall curves (Fig~\ref{fig:hmt-precision-recall}) on HMT\@.
+\myparagraph{Evaluation Metrics on HMT} I evaluated per-class accuracy (Fig~\ref{fig:hmt-classwise-accuracy}), ROC-AUC curves (Fig~\ref{fig:hmt-roc-curve}), confusion matrix (Fig~\ref{fig:hmt-confusion-matrix}), and precision-recall curves (Fig~\ref{fig:hmt-precision-recall}) on HMT\@.
 \begin{figure}[t]
 	\includegraphics[width=\textwidth]{images/hmt-class-accuracy}
 	\caption{\label{fig:hmt-classwise-accuracy}Class-wise accuracy on HMT\@.}
@@ -234,11 +234,20 @@ I evaluated per-class accuracy (Fig~\ref{fig:hmt-classwise-accuracy}), ROC-AUC c
 	\caption{\label{fig:hmt-precision-recall}HMT precision-recall curves.}
 \end{figure}
 
+
+\myparagraph{Extremal Perturbation Implementation for HMT}
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/hmt-ep-successes}
+	\caption{\label{fig:hmt-ep-successes}Class-wise accuracy on HMT\@.}
+\end{figure}
+
 \clearpage
 \appendix
 \section{Appendix: Program Listings}
 
 The code is available at \url{https://github.com/dukebw/interpretable}.
+Note that for the implementation I referred to \href[https://github.com/facebookresearch/TorchRay]{TorchRay}'s extremal perturbations.
+But, the conversion to 1D for MNIST-1D, and to TensorFlow for both MNIST-1D and HMT, was non-trivial and required significant effort.
 
 \small
 \bibliographystyle{ieee}
