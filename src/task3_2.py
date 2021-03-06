@@ -177,8 +177,6 @@ class Perturbation_TF:
 
 
 def task3_2():
-    # tf.config.set_visible_devices([], "GPU")
-
     model_path = os.path.join("project_a_supp", "models", "HMT.h5")
     model = keras.models.load_model(model_path)
     # NOTE(brendan): remove softmax to optimize class logit (linear gradient)
@@ -231,9 +229,11 @@ def task3_2():
         example_indices = incorrect_indices
     test_generator.reset()
     num_visualized = 0
+    drop_rate_cma = 0
+    increase_rate_cma = 0
     for example_idx, (image_batch, label_batch) in enumerate(test_generator):
-        if example_idx not in example_indices:
-            continue
+        # if example_idx not in example_indices:
+        #     continue
 
         regul_weight = initial_regul_weight
         # NOTE(brendan): Extremal perturbation algorithm
@@ -285,20 +285,36 @@ def task3_2():
                 print(f"mask_sorted {mask_sorted}")
                 print(f"reference {reference}")
 
-        num_rows = 2
-        plt.subplot(num_rows, num_vis_examples, 1 + num_visualized)
-        plt.imshow(np.squeeze(image_batch))
-        plt.axis("off")
-        plt.title("Input")
+        model.layers[-1].activation = softmax
+        y = model(x)
+        confidence_perturbed = y[:, target_channel]
+        y = model(image_batch)
+        confidence_raw = y[:, target_channel]
+        drop_rate = (confidence_raw - confidence_perturbed) / (
+            confidence_raw + EPSILON_SINGLE
+        )
+        increase_rate = int(confidence_perturbed > confidence_raw)
+        drop_rate_cma = (drop_rate + (example_idx * drop_rate_cma)) / (example_idx + 1)
+        increase_rate_cma = (increase_rate + (example_idx * increase_rate_cma)) / (
+            example_idx + 1
+        )
+        print(f"Drop rate {drop_rate_cma}")
+        print(f"Increase rate {increase_rate_cma}")
+        model.layers[-1].activation = None
+        # num_rows = 2
+        # plt.subplot(num_rows, num_vis_examples, 1 + num_visualized)
+        # plt.imshow(np.squeeze(image_batch))
+        # plt.axis("off")
+        # plt.title("Input")
 
-        plt.subplot(num_rows, num_vis_examples, 1 + num_vis_examples + num_visualized)
-        plt.imshow(np.squeeze(x.numpy()))
-        plt.axis("off")
-        plt.title("Perturbed")
+        # plt.subplot(num_rows, num_vis_examples, 1 + num_vis_examples + num_visualized)
+        # plt.imshow(np.squeeze(x.numpy()))
+        # plt.axis("off")
+        # plt.title("Perturbed")
 
-        num_visualized += 1
-        if num_visualized >= num_vis_examples:
-            break
+        # num_visualized += 1
+        # if num_visualized >= num_vis_examples:
+        #     break
     plt.show()
 
 
