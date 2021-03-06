@@ -213,7 +213,7 @@ Overall, by working in the input space EP produced interpretable attributions wi
 
 \subsection{Task 3: Biomedical Image Classification and Interpretation}
 
-\myparagraph{Evaluation Metrics on HMT} I evaluated per-class accuracy (Fig~\ref{fig:hmt-classwise-accuracy}), ROC-AUC curves (Fig~\ref{fig:hmt-roc-curve}), confusion matrix (Fig~\ref{fig:hmt-confusion-matrix}), and precision-recall curves (Fig~\ref{fig:hmt-precision-recall}) on HMT\@.
+\myparagraph{Evaluation metrics on HMT} I evaluated per-class accuracy (Fig~\ref{fig:hmt-classwise-accuracy}), ROC-AUC curves (Fig~\ref{fig:hmt-roc-curve}), confusion matrix (Fig~\ref{fig:hmt-confusion-matrix}), and precision-recall curves (Fig~\ref{fig:hmt-precision-recall}) on HMT\@.
 \begin{figure}[t]
 	\includegraphics[width=\textwidth]{images/hmt-class-accuracy}
 	\caption{\label{fig:hmt-classwise-accuracy}Class-wise accuracy on HMT\@.}
@@ -234,20 +234,49 @@ Overall, by working in the input space EP produced interpretable attributions wi
 	\caption{\label{fig:hmt-precision-recall}HMT precision-recall curves.}
 \end{figure}
 
-
-\myparagraph{Extremal Perturbation Implementation for HMT}
 \begin{figure}[t]
 	\includegraphics[width=\textwidth]{images/hmt-ep-successes}
-	\caption{\label{fig:hmt-ep-successes}Class-wise accuracy on HMT\@.}
+	\caption{\label{fig:hmt-ep-successes}HMT Extremal Perturbation visualization for correct classification.
+		Top row: input images.
+		Bottom row: perturbed input where unimportant regions have been blurred out.
+		Compare bottom and top row images to determine attribution.}
 \end{figure}
+
+
+\begin{figure}[t]
+	\includegraphics[width=\textwidth]{images/hmt-ep-failures}
+	\caption{\label{fig:hmt-ep-failures}HMT Extremal Perturbation visualization for correct classification.
+		Top row: input images.
+		Bottom row: perturbed input where unimportant regions have been blurred out.
+		Compare bottom and top row images to determine attribution.}
+\end{figure}
+
+\myparagraph{Extremal Perturbation Implementation for HMT} As for MNIST-1D, I implemented Extremal Perturbation in TensorFlow for attributing model predictions on HMT images.
+Example attributions for successful classifications are in Fig~\ref{fig:hmt-ep-successes}.
+Example attributions for misclassifications are in Fig~\ref{fig:hmt-ep-failures}.
+
+
+\subsection{Task 4: Quantitative Evaluation of the Attribution Methods}
+
+
+\myparagraph{Drop \% and Increase \%} As a perturbation method Extremal Perturbation (EP) is ideally suited for evaluating ``Drop \%'' and ``Increase \%''.
+Perturbation methods work by selectively deleting and preserving parts of the input and observing the effect on the model's output activations.
+For example, EP blurs out (deletes) regions of histopathology images that are not important for model predictions, leaving high frequency detail only in salient regions (Figs~\ref{fig:hmt-ep-successes} \& \ref{fig:hmt-ep-failures}).
+Since EP works by perturbations, EP is immediately interpretable in terms of Drop \% and Increase \%.
+In order to evaluate Drop \% and Increase \%, it is sufficient to compare the confidence of the model on the raw (unperturbed) input against the final perturbed input.
+Because the rest of the image has been blurred out, in EP the final perturbed input essentially contains only the salient region, making the Drop \% and Increase \% calculation intuitive.
+
+
+\myparagraph{Qualitative and quantitative results discussion}
+
 
 \clearpage
 \appendix
 \section{Appendix: Program Listings}
 
 The code is available at \url{https://github.com/dukebw/interpretable}.
-Note that for the implementation I referred to \href[https://github.com/facebookresearch/TorchRay]{TorchRay}'s extremal perturbations.
-But, the conversion to 1D for MNIST-1D, and to TensorFlow for both MNIST-1D and HMT, was non-trivial and required significant effort.
+Note that for the implementation I referred to \hyperlink{https://github.com/facebookresearch/TorchRay}{TorchRay}'s extremal perturbations.
+But, the conversion to 1D for MNIST-1D, and from PyTorch to TensorFlow for both MNIST-1D and HMT, was non-trivial and required significant effort.
 
 \small
 \bibliographystyle{ieee}

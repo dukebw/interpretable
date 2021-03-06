@@ -224,15 +224,16 @@ def task3_2():
     print(f"correct: {len(correct_indices)} incorrect: {len(incorrect_indices)}")
 
     num_vis_examples = 4
-    visualization_type = "incorrect"
+    visualization_type = "correct"
     if visualization_type == "correct":
         example_indices = correct_indices
     else:
         example_indices = incorrect_indices
     test_generator.reset()
-    for vis_idx, (image_batch, label_batch) in enumerate(test_generator):
-        if vis_idx >= num_vis_examples:
-            break
+    num_visualized = 0
+    for example_idx, (image_batch, label_batch) in enumerate(test_generator):
+        if example_idx not in example_indices:
+            continue
 
         regul_weight = initial_regul_weight
         # NOTE(brendan): Extremal perturbation algorithm
@@ -285,28 +286,19 @@ def task3_2():
                 print(f"reference {reference}")
 
         num_rows = 2
-        plt.subplot(num_rows, num_vis_examples, 1 + vis_idx)
+        plt.subplot(num_rows, num_vis_examples, 1 + num_visualized)
         plt.imshow(np.squeeze(image_batch))
         plt.axis("off")
         plt.title("Input")
 
-        plt.subplot(num_rows, num_vis_examples, 1 + num_vis_examples + vis_idx)
+        plt.subplot(num_rows, num_vis_examples, 1 + num_vis_examples + num_visualized)
         plt.imshow(np.squeeze(x.numpy()))
         plt.axis("off")
         plt.title("Perturbed")
 
-        # plt.subplot(num_rows, num_vis_examples, 1 + (2 * num_vis_examples) + vis_idx)
-        # plt.plot(digit_templates["x"][y_test[example_idx]], "r")
-        # plt.axis("off")
-        # plt.title(f"Template (label: {y_test[example_idx]})")
-
-        # if visualization_type == "incorrect":
-        #     plt.subplot(
-        #         num_rows, num_vis_examples, 1 + (3 * num_vis_examples) + vis_idx
-        #     )
-        #     plt.plot(digit_templates["x"][target_channel], "r")
-        #     plt.axis("off")
-        #     plt.title(f"Template (predicted: {target_channel})")
+        num_visualized += 1
+        if num_visualized >= num_vis_examples:
+            break
     plt.show()
 
 
